@@ -1,0 +1,27 @@
+name: 'treeier'
+
+services:
+  db:
+    image: mysql:8.0.40
+    container_name: treeier-mysql
+    ports:
+      - '${DB_PORT}:${DB_PORT}'
+    environment:
+      - MYSQL_DATABASE=${DB_NAME:?error}
+      - MYSQL_USER=${DB_USER:?error}
+      - MYSQL_PASSWORD=${DB_PASSWORD:?error}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:?error}
+      - MYSQL_TCP_PORT=${DB_PORT:?error}
+    healthcheck:
+      test: [ "CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${DB_ROOT_PASSWORD}' ]
+      start_period: 30s
+      timeout: 20s
+      retries: 3
+    command: '--default-authentication-plugin=mysql_native_password'
+
+#  message-broker:
+#    image: symptoma/activemq:5.18.0
+#    container_name: treeier-activemq
+#    ports:
+#      - '127.0.0.1:${MESSAGE_BROKER_OPEN_WIRE_PORT:?error}:61616'
+#      - '127.0.0.1:${MESSAGE_BROKER_WEB_CONSOLE_PORT:?error}:8161'
