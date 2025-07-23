@@ -1,14 +1,10 @@
 package com.sophium.treeier.exception;
 
+import lombok.Getter;
+
+@Getter
 public class RequiredFieldException extends RuntimeException {
-
-    private String fieldName;
-
-    public RequiredFieldException(String fieldName) {
-        this.fieldName = fieldName;
-    }
-
-    public String getFieldName() {
-        return this.fieldName;
+    public RequiredFieldException(String message) {
+        super(message);
     }
 }

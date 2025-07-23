@@ -27,12 +27,11 @@ public class NodeRepository {
     private final ClosureJpaRepository closureJpaRepository;
     private final NodeMapper nodeMapper;
 
-    /**
-     * Поиск узла по ID с вычислением высоты
-     */
     public NodeDto findById(long id) {
         NodeEntity node = nodeJpaRepository.findById(id).orElse(null);
-        if (node == null) return null;
+        if (node == null) {
+            return null;
+        }
         return nodeMapper.toDto(node);
     }
 
@@ -70,13 +69,13 @@ public class NodeRepository {
         closureJpaRepository.save(selfReference);
     }
 
-    public void addNodeToParentUpdate(Long nodeId, Long parentId) {
+    public void addNodeToParent(Long nodeId, Long parentId) {
         if (parentId > 0) {
             closureJpaRepository.addNodeToParent(nodeId, parentId);
         }
     }
 
-    public void removeNodeFromParentUpdate(Long nodeId, Long parentId) {
+    public void removeNodeFromParent(Long nodeId, Long parentId) {
         if (parentId > 0) {
             closureJpaRepository.removeNodeFromParent(nodeId, parentId);
         }

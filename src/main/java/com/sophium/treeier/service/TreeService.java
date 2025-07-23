@@ -8,7 +8,10 @@ import com.sophium.treeier.dto.UpdateTreeDto;
 import com.sophium.treeier.entity.NodeEntity;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
+import com.sophium.treeier.exception.DepthLimitException;
+import com.sophium.treeier.exception.InvalidNodeException;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
+import com.sophium.treeier.exception.NodeLimitException;
 import com.sophium.treeier.exception.TreeNotFoundException;
 import com.sophium.treeier.mapper.TreeMapper;
 import com.sophium.treeier.mapper.TreeNodeMapper;
@@ -37,6 +40,10 @@ import java.util.Set;
 
 import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
 import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserName;
+import static com.sophium.treeier.util.Constants.MAXIMUM_DEPTH_LIMIT_REACHED;
+import static com.sophium.treeier.util.Constants.MAXIMUM_NODES_LIMIT_REACHED;
+import static com.sophium.treeier.util.Constants.NODE_DOES_NOT_EXIST_IN_THIS_TREE;
+import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
 
 @Service
@@ -143,8 +150,7 @@ public class TreeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<TreeDto> getAccessibleTrees(Optional<User> currentUser, Pageable pageable,
-                                            Map<String, String> labels, boolean includeDeleted) {
+    public Page<TreeDto> getTrees(Pageable pageable, boolean includeDeleted, Map<String, String> labels) {
         Page<Tree> trees;
 
         if (labels != null && !labels.isEmpty()) {
@@ -280,13 +286,15 @@ public class TreeService {
         }
 
         if (tree.getNodeCount() >= MAX_NODES) {
-            throw new RuntimeException("Maximum nodes limit reached: " + MAX_NODES);
+            throw new NodeLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
 
-        if (createNodeDto.getParentId() != null && createNodeDto.getParentId() > 0) {
+        if (!Objects.isNull(createNodeDto.getParentId())) {
             NodeDto parentNode = nodeService.findById(createNodeDto.getParentId());
-            if (parentNode != null && parentNode.getHeight() >= MAX_DEPTH - 1) {
-                throw new RuntimeException("Maximum depth limit reached: " + MAX_DEPTH);
+            if (Objects.isNull(parentNode)) {
+                throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
+            } else if (parentNode.getHeight() >= MAX_DEPTH - 1) {
+                throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
             }
         }
 
@@ -317,7 +325,7 @@ public class TreeService {
 
         NodeDto node = nodeService.findById(nodeId);
         if (node == null || !node.getRootId().equals(tree.getRootNodeId())) {
-            throw new RuntimeException("Node does not belong to this tree");
+            throw new InvalidNodeException(String.format(NODE_DOES_NOT_EXIST_IN_THIS_TREE, nodeId));
         }
 
         nodeService.moveNode(nodeId, newParentId);
