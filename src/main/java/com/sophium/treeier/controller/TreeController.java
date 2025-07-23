@@ -72,11 +72,10 @@ public class TreeController {
     @GetMapping
     public ResponseEntity<Page<TreeDto>> getTrees(
         @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
-        @RequestParam(required = false) Map<String, String> labels,
-        @RequestParam(defaultValue = "false") boolean includeDeleted) {
-        Optional<User> currentUser = userRepository.findByEmail(getAuthenticatedUserEmail());
+        @RequestParam(defaultValue = "false") boolean includeDeleted,
+        @RequestParam(value = "labels", required = false) Map<String, String> labels) {
 
-        Page<TreeDto> trees = treeService.getAccessibleTrees(currentUser, pageable, labels, includeDeleted);
+        Page<TreeDto> trees = treeService.getTrees(pageable, includeDeleted, labels);
         return ResponseEntity.ok(trees);
     }
 

@@ -8,5 +8,7 @@ import lombok.Setter;
 @Setter
 @RequiredArgsConstructor
 public class InvalidNodeException extends RuntimeException {
-    private final int nodeId;
+    public InvalidNodeException(String message) {
+        super(message);
+    }
 }

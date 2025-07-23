@@ -19,16 +19,11 @@ public class ErrorResponse {
     private String stackTrace;
     private List<ValidationError> errors;
 
-    @Getter
-    @Setter
-    @RequiredArgsConstructor
-    private static class ValidationError {
-        private final String field;
-        private final String message;
+    private record ValidationError(String field, String message) {
     }
 
-    public void addValidationError(String field, String message){
-        if(Objects.isNull(errors)){
+    public void addValidationError(String field, String message) {
+        if (Objects.isNull(errors)) {
             errors = new ArrayList<>();
         }
         errors.add(new ValidationError(field, message));

@@ -5,9 +5,10 @@ import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
 import com.sophium.treeier.exception.CyclicalTreeStructureException;
+import com.sophium.treeier.exception.DepthLimitException;
 import com.sophium.treeier.exception.MoveAttemptToSelfException;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
-import com.sophium.treeier.exception.NodeExistsException;
+import com.sophium.treeier.exception.NodeAlreadyExistsException;
 import com.sophium.treeier.mapper.NodeMapper;
 import com.sophium.treeier.repository.NodeRepository;
 import com.sophium.treeier.repository.TreeRepository;
@@ -23,14 +24,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static com.sophium.treeier.util.Constants.CANNOT_MOVE_NODE_TO_A_DESCENDANT_OF_ITSELF;
+import static com.sophium.treeier.util.Constants.MAXIMUM_NODES_LIMIT_REACHED;
+import static com.sophium.treeier.util.Constants.MOVE_NODE_TO_ITSELF;
+import static com.sophium.treeier.util.Constants.NODE_ID_ALREADY_EXISTS;
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
 
 @Slf4j
 @Service
 public class NodeService {
-
-    private static final int MAX_DEPTH = 5; // move to props
 
     @Autowired
     NodeRepository nodeRepository;
@@ -41,20 +44,20 @@ public class NodeService {
 
     @Transactional
     @CacheEvict(value = {"nodes", "descendants"}, allEntries = true)
-    public NodeDto createNode(TreeNodeDto node) throws RuntimeException {
+    public NodeDto createNode(TreeNodeDto node) {
         if (!Objects.isNull(node.getParentId()) && !nodeRepository.canAddChild(node.getParentId())) {
-            throw new RuntimeException("Maximum depth reached: " + MAX_DEPTH);
+            throw new DepthLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
 
         NodeDto existingNode = nodeRepository.findById(node.getId());
         if (existingNode != null) {
-            throw new NodeExistsException();
+            throw new NodeAlreadyExistsException(NODE_ID_ALREADY_EXISTS);
         }
 
         NodeDto resultNode = nodeRepository.createNodesTableEntry(node);
         nodeRepository.createChildrenTableEntry(resultNode);
         if (!Objects.isNull(resultNode.getParentId())) {
-            nodeRepository.addNodeToParentUpdate(resultNode.getId(), resultNode.getParentId());
+            nodeRepository.addNodeToParent(resultNode.getId(), resultNode.getParentId());
         }
 
         return resultNode;
@@ -95,11 +98,11 @@ public class NodeService {
     @Transactional
     public void moveNode(Long nodeId, Long newParentId) throws NoSuchElementFoundException, CyclicalTreeStructureException, MoveAttemptToSelfException {
         if (Objects.equals(nodeId, newParentId)) {
-            throw new MoveAttemptToSelfException();
+            throw new MoveAttemptToSelfException(MOVE_NODE_TO_ITSELF);
         }
 
         if (nodeRepository.isDescendantOf(nodeId, newParentId)) {
-            throw new CyclicalTreeStructureException();
+            throw new CyclicalTreeStructureException(CANNOT_MOVE_NODE_TO_A_DESCENDANT_OF_ITSELF);
         }
 
         NodeDto node = nodeRepository.findById(nodeId);
@@ -116,9 +119,9 @@ public class NodeService {
         node.setParentId(newParentId);
         node.setRootId(newParent.getRootId());
 
-        nodeRepository.removeNodeFromParentUpdate(node.getId(), oldParentId);
+        nodeRepository.removeNodeFromParent(node.getId(), oldParentId);
         nodeRepository.updateNode(node);
-        nodeRepository.addNodeToParentUpdate(nodeId, newParentId);
+        nodeRepository.addNodeToParent(nodeId, newParentId);
     }
 
     public List<Long> deleteNodeAndDescendants(Long nodeId) {

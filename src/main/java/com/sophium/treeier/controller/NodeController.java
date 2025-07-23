@@ -2,20 +2,14 @@ package com.sophium.treeier.controller;
 
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.TreeNodeDto;
-import com.sophium.treeier.exception.CyclicalTreeStructureException;
-import com.sophium.treeier.exception.InvalidNodeException;
-import com.sophium.treeier.exception.MoveAttemptToSelfException;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
-import com.sophium.treeier.exception.NodeExistsException;
-import com.sophium.treeier.exception.RequiredFieldException;
+
 import com.sophium.treeier.service.NodeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -68,31 +62,4 @@ public class NodeController {
         return nodeService.deleteNodeAndDescendants(nodeId);
     }
 
-    @ExceptionHandler(CyclicalTreeStructureException.class)
-    public ResponseEntity<String> handleCyclicalTreeStructure(CyclicalTreeStructureException ex) {
-        return new ResponseEntity<>("You may not move a node to one of its descendants",
-            HttpStatus.LOOP_DETECTED);
-    }
-
-    @ExceptionHandler(InvalidNodeException.class)
-    public ResponseEntity<String> handleInvalidNode(InvalidNodeException e) {
-        return new ResponseEntity<>(String.format("The specified node %d does not exist", e.getNodeId()),
-            HttpStatus.NOT_FOUND);
-    }
-
-    @ExceptionHandler(MoveAttemptToSelfException.class)
-    public ResponseEntity<String> handleMoveToSelf(MoveAttemptToSelfException e) {
-        return new ResponseEntity<>("You may not move a node to itself", HttpStatus.CONFLICT);
-    }
-
-    @ExceptionHandler(NodeExistsException.class)
-    public ResponseEntity<String> handleNodeExists(NodeExistsException e) {
-        return new ResponseEntity<>("A node with this ID already exists", HttpStatus.CONFLICT);
-    }
-
-    @ExceptionHandler(RequiredFieldException.class)
-    public ResponseEntity<String> handleRequiredField(RequiredFieldException e) {
-        return new ResponseEntity<>(String.format("%s is a required field", e.getFieldName()),
-            HttpStatus.BAD_REQUEST);
-    }
 }
