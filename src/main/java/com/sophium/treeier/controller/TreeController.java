@@ -8,7 +8,7 @@ import com.sophium.treeier.dto.TreeStatisticsDto;
 import com.sophium.treeier.dto.UpdateTreeDto;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
-import com.sophium.treeier.repository.TreeRepository;
+import com.sophium.treeier.repository.TreeJpaRepository;
 import com.sophium.treeier.repository.UserRepository;
 import com.sophium.treeier.request.CreateTreeDto;
 import com.sophium.treeier.request.CreateTreeNodeDto;
@@ -49,7 +49,7 @@ public class TreeController {
 
     private final TreeService treeService;
     private final UserRepository userRepository;
-    private final TreeRepository treeRepository;
+    private final TreeJpaRepository treeRepository;
     private final NodeService nodeService;
 
     @PostMapping
@@ -72,10 +72,9 @@ public class TreeController {
     @GetMapping
     public ResponseEntity<Page<TreeDto>> getTrees(
         @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
-        @RequestParam(defaultValue = "false") boolean includeDeleted,
-        @RequestParam(value = "labels", required = false) Map<String, String> labels) {
+        @RequestParam(required = false) Map<String, String> labels) {
 
-        Page<TreeDto> trees = treeService.getTrees(pageable, includeDeleted, labels);
+        Page<TreeDto> trees = treeService.getTrees(pageable, labels);
         return ResponseEntity.ok(trees);
     }
 
