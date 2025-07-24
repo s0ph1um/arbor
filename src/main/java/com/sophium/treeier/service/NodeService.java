@@ -11,7 +11,7 @@ import com.sophium.treeier.exception.NoSuchElementFoundException;
 import com.sophium.treeier.exception.NodeAlreadyExistsException;
 import com.sophium.treeier.mapper.NodeMapper;
 import com.sophium.treeier.repository.NodeRepository;
-import com.sophium.treeier.repository.TreeRepository;
+import com.sophium.treeier.repository.TreeJpaRepository;
 import com.sophium.treeier.request.UpdateTreeNodeDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,25 +38,25 @@ public class NodeService {
     @Autowired
     NodeRepository nodeRepository;
     @Autowired
-    TreeRepository treeRepository;
+    TreeJpaRepository treeRepository;
     @Autowired
     private NodeMapper nodeMapper;
 
     @Transactional
-    @CacheEvict(value = {"nodes", "descendants"}, allEntries = true)
+    @CacheEvict(value = {"nodes"}, allEntries = true)
     public NodeDto createNode(TreeNodeDto node) {
-        if (!Objects.isNull(node.getParentId()) && !nodeRepository.canAddChild(node.getParentId())) {
+        if (Objects.nonNull(node.getParentId()) && !nodeRepository.canAddChild(node.getParentId())) {
             throw new DepthLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
 
         NodeDto existingNode = nodeRepository.findById(node.getId());
-        if (existingNode != null) {
+        if (Objects.nonNull(existingNode)) {
             throw new NodeAlreadyExistsException(NODE_ID_ALREADY_EXISTS);
         }
 
         NodeDto resultNode = nodeRepository.createNodesTableEntry(node);
         nodeRepository.createChildrenTableEntry(resultNode);
-        if (!Objects.isNull(resultNode.getParentId())) {
+        if (Objects.nonNull(resultNode.getParentId())) {
             nodeRepository.addNodeToParent(resultNode.getId(), resultNode.getParentId());
         }
 
@@ -83,7 +83,7 @@ public class NodeService {
         }
 
         NodeDto node = nodeRepository.findById(nodeId);
-        if (node == null) {
+        if (Objects.isNull(node)) {
             throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, nodeId));
         }
 
@@ -106,12 +106,12 @@ public class NodeService {
         }
 
         NodeDto node = nodeRepository.findById(nodeId);
-        if (node == null) {
+        if (Objects.isNull(node)) {
             throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, nodeId));
         }
 
         NodeDto newParent = nodeRepository.findById(newParentId);
-        if (newParent == null) {
+        if (Objects.isNull(newParent)) {
             throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, newParentId));
         }
 

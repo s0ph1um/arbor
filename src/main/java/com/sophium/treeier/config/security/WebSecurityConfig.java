@@ -36,14 +36,12 @@ public class WebSecurityConfig {
         http
             .authorizeHttpRequests(authorize -> authorize
                     .requestMatchers("/actuator/**", "/login/**", "/oauth2/**").permitAll() // remove /api and uncomment below
-                    .anyRequest().authenticated() // todo
-//                .anyRequest().permitAll() // todo
+                    .anyRequest().authenticated()
+//                .anyRequest().permitAll()
             )
-            .oauth2Login(oauth2 -> {
-                oauth2.redirectionEndpoint(redirection ->
-                    redirection.baseUri("/login/oauth2/code/google")
-                );
-            })
+            .oauth2Login(oauth2 -> oauth2.redirectionEndpoint(redirection ->
+                redirection.baseUri("/login/oauth2/code/google")
+            ))
 //            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
 //            .sessionManagement(session ->
 //                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // For API (react will send JWT tokens)

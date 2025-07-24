@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
@@ -24,12 +25,12 @@ public class NodeRepository {
     private static final int MAX_DEPTH = 5;
 
     private final NodeJpaRepository nodeJpaRepository;
-    private final ClosureJpaRepository closureJpaRepository;
+    private final ClosureRepository closureJpaRepository;
     private final NodeMapper nodeMapper;
 
     public NodeDto findById(long id) {
         NodeEntity node = nodeJpaRepository.findById(id).orElse(null);
-        if (node == null) {
+        if (Objects.isNull(node)) {
             return null;
         }
         return nodeMapper.toDto(node);
@@ -47,7 +48,7 @@ public class NodeRepository {
 
     public NodeEntity updateNode(NodeDto node) {
         NodeEntity entity = nodeJpaRepository.findById(node.getId()).orElse(null);
-        if (entity != null) {
+        if (Objects.nonNull(entity)) {
             entity.setParentId(node.getParentId());
             entity.setRootId(node.getRootId());
             entity.setTitle(node.getTitle());
@@ -70,13 +71,13 @@ public class NodeRepository {
     }
 
     public void addNodeToParent(Long nodeId, Long parentId) {
-        if (parentId > 0) {
+        if (Objects.nonNull(parentId)) {
             closureJpaRepository.addNodeToParent(nodeId, parentId);
         }
     }
 
     public void removeNodeFromParent(Long nodeId, Long parentId) {
-        if (parentId > 0) {
+        if (Objects.nonNull(parentId)) {
             closureJpaRepository.removeNodeFromParent(nodeId, parentId);
         }
     }

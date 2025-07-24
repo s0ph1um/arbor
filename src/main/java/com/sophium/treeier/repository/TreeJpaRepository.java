@@ -11,20 +11,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public interface TreeRepository extends JpaRepository<Tree, Long> {
-
-    @Query("SELECT t FROM Tree t WHERE t.deletedAt IS NOT NULL")
-    Page<Tree> findAllIncludingDeleted(Pageable pageable);
+public interface TreeJpaRepository extends JpaRepository<Tree, Long> {
 
     @Query("SELECT t FROM Tree t WHERE " +
-        "(:includeDeleted = true OR t.deletedAt IS NULL) AND " +
         "EXISTS (SELECT 1 FROM t.labels l WHERE KEY(l) IN :keys AND VALUE(l) IN :values)")
     Page<Tree> findByLabels(@Param("keys") Set<String> keys,
                             @Param("values") Set<String> values,
-                            @Param("includeDeleted") boolean includeDeleted,
                             Pageable pageable);
 
-    default Page<Tree> findByLabels(Map<String, String> labels, Pageable pageable, boolean includeDeleted) {
-        return findByLabels(labels.keySet(), new HashSet<>(labels.values()), includeDeleted, pageable);
+    default Page<Tree> findByLabels(Map<String, String> labels, Pageable pageable) {
+        return findByLabels(labels.keySet(), new HashSet<>(labels.values()), pageable);
     }
 }

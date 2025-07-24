@@ -12,7 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ClosureJpaRepository extends JpaRepository<ClosureEntity, ClosureEntity.ClosureId> {
+public interface ClosureRepository extends JpaRepository<ClosureEntity, ClosureEntity.ClosureId> {
 
         @Query("SELECT new com.sophium.treeier.dto.NodeDto(" +
         "n.id, n.parentId, n.rootId, n.title, n.description, n.nodeType, n.flagValue, n.linkValue, d.depth) " +

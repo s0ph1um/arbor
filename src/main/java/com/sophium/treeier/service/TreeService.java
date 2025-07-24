@@ -16,7 +16,7 @@ import com.sophium.treeier.exception.TreeNotFoundException;
 import com.sophium.treeier.mapper.TreeMapper;
 import com.sophium.treeier.mapper.TreeNodeMapper;
 import com.sophium.treeier.repository.NodeRepository;
-import com.sophium.treeier.repository.TreeRepository;
+import com.sophium.treeier.repository.TreeJpaRepository;
 import com.sophium.treeier.repository.UserRepository;
 import com.sophium.treeier.request.CreateTreeDto;
 import com.sophium.treeier.request.CreateTreeNodeDto;
@@ -54,7 +54,7 @@ public class TreeService {
     private static final int MAX_NODES = 10000;
     private static final int MAX_DEPTH = 5;
 
-    private final TreeRepository treeRepository;
+    private final TreeJpaRepository treeRepository;
     private final NodeService nodeService;
     private final NodeRepository nodeRepository;
     private final UserRepository userRepository;
@@ -150,15 +150,13 @@ public class TreeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<TreeDto> getTrees(Pageable pageable, boolean includeDeleted, Map<String, String> labels) {
+    public Page<TreeDto> getTrees(Pageable pageable, Map<String, String> labels) {
         Page<Tree> trees;
 
         if (labels != null && !labels.isEmpty()) {
-            trees = treeRepository.findByLabels(labels, pageable, includeDeleted);
+            trees = treeRepository.findByLabels(labels, pageable);
         } else {
-            trees = includeDeleted
-                ? treeRepository.findAllIncludingDeleted(pageable)
-                : treeRepository.findAll(pageable);
+            trees = treeRepository.findAll(pageable);
         }
 
         return trees.map(treeMapper::toDtoWithoutNodes);
@@ -258,7 +256,7 @@ public class TreeService {
             throw new AccessDeniedException("User cannot edit this tree");
         }
 
-        tree.setLabels(labels);
+        tree.getLabels().putAll(labels);
         Tree saved = treeRepository.save(tree);
         return treeMapper.toDto(saved);
     }
@@ -289,7 +287,7 @@ public class TreeService {
             throw new NodeLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
 
-        if (!Objects.isNull(createNodeDto.getParentId())) {
+        if (Objects.nonNull(createNodeDto.getParentId())) {
             NodeDto parentNode = nodeService.findById(createNodeDto.getParentId());
             if (Objects.isNull(parentNode)) {
                 throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
