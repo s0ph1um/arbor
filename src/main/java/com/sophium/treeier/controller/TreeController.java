@@ -140,7 +140,7 @@ public class TreeController {
         return ResponseEntity.ok(stats);
     }
 
-    @PostMapping("/{id}/nodes")
+    @PostMapping("/{id}/node")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<TreeNodeDto> addNode(
         @PathVariable Long id,
@@ -165,7 +165,7 @@ public class TreeController {
         return ResponseEntity.status(HttpStatus.OK).body(updatedNode);
     }
 
-    @PutMapping("/{id}/nodes/{nodeId}/move/{newParentId}")
+    @PutMapping("/{id}/node/{nodeId}/move/{newParentId}")
     public ResponseEntity<Void> moveNode(
         @PathVariable Long id,
         @PathVariable Long nodeId,

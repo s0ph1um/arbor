@@ -5,8 +5,6 @@ import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
 
 import com.sophium.treeier.service.NodeService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,15 +19,12 @@ import java.util.List;
 
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 
-
 @RestController
 @RequestMapping("/api")
 public class NodeController {
 
     @Autowired
     NodeService nodeService;
-
-    private final Logger logger = LoggerFactory.getLogger(NodeController.class);
 
     @GetMapping("/node/{id}")
     public NodeDto getNode(@PathVariable("id") Long nodeId) {
