@@ -40,7 +40,7 @@ public class NodeRepository {
         return nodeJpaRepository.findById(id).orElse(null);
     }
 
-    public NodeDto createNodesTableEntry(TreeNodeDto node) {
+    public NodeDto createNode(TreeNodeDto node) {
         NodeEntity entity = nodeMapper.treeNodeDtoToEntity(node);
         NodeEntity saved = nodeJpaRepository.save(entity);
         return findById(saved.getId());

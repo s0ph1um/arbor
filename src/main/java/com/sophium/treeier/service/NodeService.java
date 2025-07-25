@@ -54,7 +54,7 @@ public class NodeService {
             throw new NodeAlreadyExistsException(NODE_ID_ALREADY_EXISTS);
         }
 
-        NodeDto resultNode = nodeRepository.createNodesTableEntry(node);
+        NodeDto resultNode = nodeRepository.createNode(node);
         nodeRepository.createChildrenTableEntry(resultNode);
         if (Objects.nonNull(resultNode.getParentId())) {
             nodeRepository.addNodeToParent(resultNode.getId(), resultNode.getParentId());
