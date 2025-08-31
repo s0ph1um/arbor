@@ -1,8 +1,7 @@
 package com.sophium.treeier.repository;
 
-import com.sophium.treeier.dto.NodeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.entity.ClosureEntity;
+import com.sophium.treeier.entity.NodeEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,13 +13,12 @@ import java.util.List;
 @Repository
 public interface ClosureRepository extends JpaRepository<ClosureEntity, ClosureEntity.ClosureId> {
 
-        @Query("SELECT new com.sophium.treeier.dto.NodeDto(" +
-        "n.id, n.parentId, n.rootId, n.title, n.description, n.nodeType, n.flagValue, n.linkValue, d.depth) " +
+        @Query("SELECT n " +
         "FROM NodeEntity n " +
         "LEFT JOIN ClosureEntity d ON d.ancestor = n.rootId AND d.descendant = n.id " +
         "WHERE n.parentId = :parentId AND d.ancestor != d.descendant " +
         "ORDER BY n.id")
-    List<NodeDto> findDirectChildren(@Param("parentId") Long parentId);
+    List<NodeEntity> findDirectChildren(@Param("parentId") Long parentId);
 
     @Query("SELECT COUNT(c) FROM ClosureEntity c " +
         "WHERE c.ancestor = :nodeId AND c.descendant != :nodeId")
@@ -66,14 +64,12 @@ public interface ClosureRepository extends JpaRepository<ClosureEntity, ClosureE
         nativeQuery = true)
     List<Object[]> countNodesPerLevel(@Param("rootId") Long rootId);
 
-    @Query("SELECT new com.sophium.treeier.dto.TreeNodeDto(" +
-        "n.id, n.parentId, n.rootId, n.title, n.description, n.nodeType, " +
-        "n.flagValue, n.linkValue, c.depth) " +
+    @Query("SELECT n " +
         "FROM NodeEntity n " +
         "JOIN ClosureEntity c ON c.descendant = n.id " +
         "WHERE (c.ancestor = :rootId OR n.id = :rootId) AND c.ancestor != c.descendant " +
         "ORDER BY c.depth, n.id")
-    List<TreeNodeDto> findAllTreeNodes(@Param("rootId") Long rootId);
+    List<NodeEntity> findAllTreeNodes(@Param("rootId") Long rootId);
 
     @Query("SELECT MAX(c.depth) FROM ClosureEntity c WHERE c.ancestor = :rootId")
     Integer findMaxDepthInTree(@Param("rootId") Long rootId);

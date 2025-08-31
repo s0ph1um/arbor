@@ -1,7 +1,6 @@
 package com.sophium.treeier.controller;
 
 import com.sophium.treeier.dto.NodeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
 
 import com.sophium.treeier.service.NodeService;
@@ -36,8 +35,8 @@ public class NodeController {
     }
 
     @GetMapping("/nodes/{rootNodeId}")
-    public List<TreeNodeDto> findChildrenFromRoot(@PathVariable("rootNodeId") Long rootNodeId) {
-        List<TreeNodeDto> node = nodeService.findAllNodesFromRoot(rootNodeId);
+    public List<NodeDto> findChildrenFromRoot(@PathVariable("rootNodeId") Long rootNodeId) {
+        List<NodeDto> node = nodeService.findAllNodesFromRoot(rootNodeId);
         if (node == null) {
             throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, rootNodeId));
         }

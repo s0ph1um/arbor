@@ -2,7 +2,6 @@ package com.sophium.treeier.service;
 
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.TreeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.dto.TreeStatisticsDto;
 import com.sophium.treeier.dto.UpdateTreeDto;
 import com.sophium.treeier.entity.NodeEntity;
@@ -28,13 +27,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -45,6 +42,8 @@ import static com.sophium.treeier.util.Constants.MAXIMUM_NODES_LIMIT_REACHED;
 import static com.sophium.treeier.util.Constants.NODE_DOES_NOT_EXIST_IN_THIS_TREE;
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 @Service
 @RequiredArgsConstructor
@@ -62,7 +61,7 @@ public class TreeService {
     private final TreeNodeMapper treeNodeMapper;
 
     public TreeDto createTree(CreateTreeDto dto) {
-        TreeNodeDto rootNode = new TreeNodeDto();
+        NodeDto rootNode = new NodeDto();
         rootNode.setId(generateNodeId());
         rootNode.setRootId(rootNode.getId());
         rootNode.setTitle(dto.getTitle());
@@ -84,11 +83,6 @@ public class TreeService {
 
         Tree savedTree = treeRepository.save(tree);
 
-        if (dto.getNodes() != null && !dto.getNodes().isEmpty()) {
-            for (CreateTreeNodeDto nodeDto : dto.getNodes()) {
-                addNodeToTree(savedTree, nodeDto, Optional.of(treeOwner));
-            }
-        }
         return treeMapper.toDto(savedTree);
     }
 
@@ -141,7 +135,7 @@ public class TreeService {
             .orElseThrow(() -> new TreeNotFoundException(treeId));
 
         User user = currentUser.orElse(null);
-        if (Objects.isNull(user) || !tree.isOwner(user)) {
+        if (isNull(user) || !tree.isOwner(user)) {
             throw new AccessDeniedException("Only owner can delete tree");
         }
 
@@ -193,52 +187,9 @@ public class TreeService {
         Tree tree = treeRepository.findById(treeId)
             .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        List<TreeNodeDto> nodes = loadTreeStructure(tree.getRootNodeId());
+        List<NodeDto> nodes = loadTreeStructure(tree.getRootNodeId());
 
         return treeMapper.toDtoWithNodes(tree, nodes);
-    }
-
-    private List<TreeNodeDto> loadTreeStructure(Long rootNodeId) {
-        NodeDto rootNode = nodeService.findById(rootNodeId);
-        TreeNodeDto rootDto = convertToTreeNodeDto(rootNode);
-
-        loadChildrenRecursively(rootDto);
-
-        return List.of(rootDto);
-    }
-
-    private void loadChildrenRecursively(TreeNodeDto parent) {
-        List<NodeDto> directChildren = nodeRepository.findDirectChildren(parent.getId());
-
-        List<TreeNodeDto> children = directChildren.stream()
-            .map(child -> {
-                TreeNodeDto childDto = treeNodeMapper.nodeDtoToTreeNodeDto(child);
-                loadChildrenRecursively(childDto);
-                return childDto;
-            })
-            .toList();
-
-        parent.setChildren(children);
-    }
-
-    private TreeNodeDto convertToTreeNodeDto(NodeDto node) {
-        NodeEntity entity = nodeRepository.findNodeEntityById(node.getId());
-
-        TreeNodeDto dto = new TreeNodeDto();
-        dto.setId(node.getId());
-        dto.setParentId(node.getParentId());
-        dto.setHeight(node.getHeight());
-
-        if (entity != null) {
-            dto.setTitle(entity.getTitle());
-            dto.setDescription(entity.getDescription());
-            dto.setNodeType(entity.getNodeType());
-            dto.setFlagValue(entity.getFlagValue());
-            dto.setLinkValue(entity.getLinkValue());
-        }
-
-        dto.setChildren(new ArrayList<>());
-        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -246,6 +197,26 @@ public class TreeService {
         Tree tree = treeRepository.findById(treeId)
             .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
         return treeMapper.toDtoWithoutNodes(tree);
+    }
+
+    private List<NodeDto> loadTreeStructure(Long rootNodeId) {
+        NodeDto rootNode = nodeService.findById(rootNodeId);
+        loadChildrenRecursively(rootNode);
+        return List.of(rootNode);
+    }
+
+    private void loadChildrenRecursively(NodeDto parent) {
+        List<NodeEntity> directChildren = nodeRepository.findDirectChildren(parent.getId());
+
+        List<NodeDto> children = directChildren.stream()
+            .map(child -> {
+                NodeDto childDto = treeNodeMapper.toDto(child);
+                loadChildrenRecursively(childDto);
+                return childDto;
+            })
+            .toList();
+
+        parent.setChildren(children);
     }
 
     public TreeDto updateLabels(Long treeId, Map<String, String> labels, Optional<User> currentUser) {
@@ -278,7 +249,7 @@ public class TreeService {
         );
     }
 
-    public TreeNodeDto addNodeToTree(Tree tree, CreateTreeNodeDto createNodeDto, Optional<User> currentUser) {
+    public NodeDto addNodeToTree(Tree tree, CreateTreeNodeDto createNodeDto, Optional<User> currentUser) {
         if (currentUser.isEmpty() || !tree.canEdit(currentUser.get())) {
             throw new AccessDeniedException("User cannot edit this tree");
         }
@@ -287,16 +258,16 @@ public class TreeService {
             throw new NodeLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
 
-        if (Objects.nonNull(createNodeDto.getParentId())) {
+        if (nonNull(createNodeDto.getParentId())) {
             NodeDto parentNode = nodeService.findById(createNodeDto.getParentId());
-            if (Objects.isNull(parentNode)) {
+            if (isNull(parentNode)) {
                 throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
             } else if (parentNode.getHeight() >= MAX_DEPTH - 1) {
                 throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
             }
         }
 
-        TreeNodeDto newNode = new TreeNodeDto();
+        NodeDto newNode = new NodeDto();
         newNode.setId(generateNodeId());
         newNode.setParentId(createNodeDto.getParentId() != null ? createNodeDto.getParentId() : tree.getRootNodeId());
         newNode.setRootId(tree.getRootNodeId());
@@ -343,9 +314,9 @@ public class TreeService {
         Map<Long, Long> oldToNewIdMapping = new HashMap<>();
 
         NodeDto rootNode = nodeService.findById(rootNodeId);
-        List<TreeNodeDto> allDescendants = nodeService.findAllNodesFromRoot(rootNodeId);
+        List<NodeDto> allDescendants = nodeService.findAllNodesFromRoot(rootNodeId);
 
-        TreeNodeDto newRoot = new TreeNodeDto();
+        NodeDto newRoot = new NodeDto();
         newRoot.setId(generateNodeId());
         newRoot.setRootId(newRoot.getId());
         newRoot.setTitle(rootNode.getTitle());
@@ -354,11 +325,10 @@ public class TreeService {
         NodeDto createdRoot = nodeService.createNode(newRoot);
         oldToNewIdMapping.put(rootNodeId, createdRoot.getId());
 
-        // sort for proper creation order
-        allDescendants.sort(Comparator.comparing(TreeNodeDto::getHeight));
+        allDescendants.sort(Comparator.comparing(NodeDto::getHeight));
 
-        for (TreeNodeDto descendant : allDescendants) {
-            TreeNodeDto newNode = new TreeNodeDto();
+        for (NodeDto descendant : allDescendants) {
+            NodeDto newNode = new NodeDto();
             newNode.setId(generateNodeId());
 
             Long newParentId = oldToNewIdMapping.get(descendant.getParentId());
@@ -375,7 +345,7 @@ public class TreeService {
         return oldToNewIdMapping;
     }
 
-    private void copyNodeDetails(Long sourceNodeId, TreeNodeDto targetNode) {
+    private void copyNodeDetails(Long sourceNodeId, NodeDto targetNode) {
         NodeEntity sourceEntity = nodeRepository.findNodeEntityById(sourceNodeId);
         if (sourceEntity != null) {
             targetNode.setTitle(sourceEntity.getTitle());
@@ -390,20 +360,15 @@ public class TreeService {
     private User getTreeOwner(Tree tree) {
         String userId = getAuthenticatedUserEmail();
         String userName = getAuthenticatedUserName();
-        Optional<User> ownerOpt = userRepository.findByEmail(userId);
+        Optional<User> existingUserOpt = userRepository.findByEmail(userId);
 
-        if (ownerOpt.isEmpty()) {
-            return userRepository.save(User.builder()
+        return existingUserOpt
+            .orElseGet(() -> userRepository.save(User.builder()
                 .email(userId)
                 .name(userName)
                 .createdAt(LocalDateTime.now())
                 .editableTrees(Set.of(tree))
-                .build());
-        } else {
-            User user = ownerOpt.get();
-            user.getEditableTrees().add(tree);
-            return user;
-        }
+                .build()));
     }
 
     private Long generateNodeId() {

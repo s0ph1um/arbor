@@ -6,11 +6,17 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+
+import java.util.List;
 
 @Data
-@NoArgsConstructor
+@Builder
+@RequiredArgsConstructor
 @AllArgsConstructor
 public class NodeDto {
 
@@ -37,5 +43,10 @@ public class NodeDto {
     @Min(0)
     @Max(5)
     private Integer height = 0;
+
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private List<CommentDto> comments;
+    private List<NodeDto> children;
 
 }

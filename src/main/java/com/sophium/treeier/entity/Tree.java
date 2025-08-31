@@ -17,11 +17,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedBy;
@@ -92,6 +95,7 @@ public class Tree {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_tree_id")
+//    @NotFound(action = NotFoundAction.IGNORE)
     private Tree parentTree;
 
     @OneToMany(mappedBy = "parentTree", fetch = FetchType.LAZY)
@@ -134,6 +138,11 @@ public class Tree {
 
     public boolean canEdit(User user) {
         return isOwner(user) || editors.contains(user);
+    }
+
+    @Transient
+    public boolean isParentDeleted() {
+        return isForked() && parentTree.getDeletedAt() != null;
     }
 
     public boolean isForked() {
