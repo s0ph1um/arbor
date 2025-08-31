@@ -1,7 +1,6 @@
 package com.sophium.treeier.service;
 
 import com.sophium.treeier.dto.NodeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
 import com.sophium.treeier.exception.CyclicalTreeStructureException;
@@ -44,7 +43,7 @@ public class NodeService {
 
     @Transactional
     @CacheEvict(value = {"nodes"}, allEntries = true)
-    public NodeDto createNode(TreeNodeDto node) {
+    public NodeDto createNode(NodeDto node) {
         if (Objects.nonNull(node.getParentId()) && !nodeRepository.canAddChild(node.getParentId())) {
             throw new DepthLimitException(MAXIMUM_NODES_LIMIT_REACHED);
         }
@@ -69,8 +68,8 @@ public class NodeService {
     }
 
     @Cacheable(value = "nodes", key = "#rootId")
-    public List<TreeNodeDto> findAllNodesFromRoot(Long rootId) {
-        return nodeRepository.findAllTreeNodes(rootId);
+    public List<NodeDto> findAllNodesFromRoot(Long rootId) {
+        return nodeMapper.toDtos(nodeRepository.findAllTreeNodes(rootId));
     }
 
     @Transactional

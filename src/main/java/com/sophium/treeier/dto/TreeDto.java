@@ -25,10 +25,7 @@ public class TreeDto {
     private Integer maxDepth;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
     private List<TreeHistoryDto> history;
-
-    private boolean deleted;
-
-    private List<TreeNodeDto> nodes;
+    private boolean isParentTreeDeleted;
+    private List<NodeDto> nodes;
 }

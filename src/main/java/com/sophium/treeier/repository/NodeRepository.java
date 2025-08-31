@@ -1,7 +1,6 @@
 package com.sophium.treeier.repository;
 
 import com.sophium.treeier.dto.NodeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.entity.ClosureEntity;
 import com.sophium.treeier.entity.NodeEntity;
 import com.sophium.treeier.exception.NoSuchElementFoundException;
@@ -40,7 +39,7 @@ public class NodeRepository {
         return nodeJpaRepository.findById(id).orElse(null);
     }
 
-    public NodeDto createNode(TreeNodeDto node) {
+    public NodeDto createNode(NodeDto node) {
         NodeEntity entity = nodeMapper.treeNodeDtoToEntity(node);
         NodeEntity saved = nodeJpaRepository.save(entity);
         return findById(saved.getId());
@@ -86,7 +85,7 @@ public class NodeRepository {
         return closureJpaRepository.existsByAncestorAndDescendant(parentId, childId);
     }
 
-    public List<NodeDto> findDirectChildren(Long nodeId) {
+    public List<NodeEntity> findDirectChildren(Long nodeId) {
         return closureJpaRepository.findDirectChildren(nodeId);
     }
 
@@ -116,7 +115,7 @@ public class NodeRepository {
         return nodesPerLevel;
     }
 
-    public List<TreeNodeDto> findAllTreeNodes(Long rootId) {
+    public List<NodeEntity> findAllTreeNodes(Long rootId) {
         return closureJpaRepository.findAllTreeNodes(rootId);
     }
 

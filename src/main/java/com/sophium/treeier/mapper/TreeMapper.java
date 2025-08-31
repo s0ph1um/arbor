@@ -1,7 +1,7 @@
 package com.sophium.treeier.mapper;
 
+import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.TreeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
 import org.mapstruct.Mapper;
@@ -43,7 +43,7 @@ public interface TreeMapper {
             .toList();
     }
 
-    default TreeDto toDtoWithNodes(Tree tree, List<TreeNodeDto> nodes) {
+    default TreeDto toDtoWithNodes(Tree tree, List<NodeDto> nodes) {
         TreeDto dto = toDto(tree);
         dto.setNodes(nodes);
         return dto;

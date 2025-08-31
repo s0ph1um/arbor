@@ -3,7 +3,6 @@ package com.sophium.treeier.controller;
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.ShareTreeDto;
 import com.sophium.treeier.dto.TreeDto;
-import com.sophium.treeier.dto.TreeNodeDto;
 import com.sophium.treeier.dto.TreeStatisticsDto;
 import com.sophium.treeier.dto.UpdateTreeDto;
 import com.sophium.treeier.entity.Tree;
@@ -142,15 +141,15 @@ public class TreeController {
 
     @PostMapping("/{id}/node")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<TreeNodeDto> addNode(
+    public ResponseEntity<NodeDto> addNode(
         @PathVariable Long id,
         @Valid @RequestBody CreateTreeNodeDto nodeDto) {
         Optional<User> user = userRepository.findByEmail(getAuthenticatedUserEmail());
 
         Optional<Tree> treeOpt = treeRepository.findById(id);
 
-        TreeNodeDto created = treeService.addNodeToTree(treeOpt.orElse(null), nodeDto, user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        NodeDto createdNode = treeService.addNodeToTree(treeOpt.orElse(null), nodeDto, user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdNode);
     }
 
     @PutMapping("/{treeId}/node/{nodeId}")
