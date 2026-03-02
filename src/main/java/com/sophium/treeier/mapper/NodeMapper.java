@@ -12,7 +12,7 @@ import java.util.List;
     nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.SET_TO_DEFAULT)
 public interface NodeMapper {
 
-    @Mapping(source = "depth", target = "height", defaultValue = "0")
+    @Mapping(source = "depth", target = "depth", defaultValue = "0")
     NodeDto toDto(NodeEntity entity);
 
     List<NodeDto> toDtos(List<NodeEntity> entity);

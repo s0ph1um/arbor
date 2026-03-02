@@ -42,7 +42,7 @@ public class NodeDto {
 
     @Min(0)
     @Max(5)
-    private Integer height = 0;
+    private Integer depth;
 
     @EqualsAndHashCode.Exclude
     @ToString.Exclude

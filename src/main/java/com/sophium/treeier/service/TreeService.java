@@ -20,6 +20,7 @@ import com.sophium.treeier.repository.UserRepository;
 import com.sophium.treeier.request.CreateTreeDto;
 import com.sophium.treeier.request.CreateTreeNodeDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -45,6 +46,7 @@ import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -61,6 +63,7 @@ public class TreeService {
     private final TreeNodeMapper treeNodeMapper;
 
     public TreeDto createTree(CreateTreeDto dto) {
+
         NodeDto rootNode = new NodeDto();
         rootNode.setId(generateNodeId());
         rootNode.setRootId(rootNode.getId());
@@ -262,7 +265,7 @@ public class TreeService {
             NodeDto parentNode = nodeService.findById(createNodeDto.getParentId());
             if (isNull(parentNode)) {
                 throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
-            } else if (parentNode.getHeight() >= MAX_DEPTH - 1) {
+            } else if (parentNode.getDepth() >= MAX_DEPTH - 1) {
                 throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
             }
         }
@@ -320,12 +323,12 @@ public class TreeService {
         newRoot.setId(generateNodeId());
         newRoot.setRootId(newRoot.getId());
         newRoot.setTitle(rootNode.getTitle());
-        newRoot.setHeight(0);
+        newRoot.setDepth(0);
 
         NodeDto createdRoot = nodeService.createNode(newRoot);
         oldToNewIdMapping.put(rootNodeId, createdRoot.getId());
 
-        allDescendants.sort(Comparator.comparing(NodeDto::getHeight));
+        allDescendants.sort(Comparator.comparing(NodeDto::getDepth));
 
         for (NodeDto descendant : allDescendants) {
             NodeDto newNode = new NodeDto();
