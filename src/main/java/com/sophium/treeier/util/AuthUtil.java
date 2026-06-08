@@ -30,4 +30,10 @@ public class AuthUtil {
             .map(claims -> claims.getClaimAsString("name"))
             .orElse(null);
     }
+
+    public static String getAuthenticatedUserPicture() {
+        return getAuthenticatedUserClaims()
+            .map(claims -> claims.getClaimAsString("picture"))
+            .orElse(null);
+    }
 }

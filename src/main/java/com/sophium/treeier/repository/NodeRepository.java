@@ -3,7 +3,7 @@ package com.sophium.treeier.repository;
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.entity.ClosureEntity;
 import com.sophium.treeier.entity.NodeEntity;
-import com.sophium.treeier.exception.NoSuchElementFoundException;
+import com.sophium.treeier.exception.NotFoundException;
 import com.sophium.treeier.mapper.NodeMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -55,7 +55,7 @@ public class NodeRepository {
             entity.setDescription(node.getDescription());
             return nodeJpaRepository.save(entity);
         }
-        throw new NoSuchElementFoundException(NODE_NOT_FOUND);
+        throw new NotFoundException(NODE_NOT_FOUND);
     }
 
     public void createChildrenTableEntry(NodeDto node) {
@@ -124,7 +124,7 @@ public class NodeRepository {
         Optional<NodeEntity> nodeToDelete = nodeJpaRepository.findById(nodeId);
 
         if (nodeToDelete.isEmpty()) {
-            throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, nodeId));
+            throw new NotFoundException(String.format(NODE_NOT_FOUND, nodeId));
         }
         List<Long> nodesToDelete = closureJpaRepository.findDescendantIds(nodeId);
         nodesToDelete.add(nodeId);

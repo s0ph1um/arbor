@@ -7,7 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -41,9 +41,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-                                                                  HttpHeaders headers,
-                                                                  HttpStatusCode status,
-                                                                  WebRequest request) {
+                                                                  @NonNull HttpHeaders headers,
+                                                                  @NonNull HttpStatusCode status,
+                                                                  @NonNull WebRequest request) {
         ErrorResponse errorResponse = new ErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.value(), "Validation error. Check 'errors' field for details.");
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errorResponse.addValidationError(fieldError.getField(), fieldError.getDefaultMessage());
@@ -65,9 +65,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return buildErrorResponse(depthLimitException, HttpStatus.BAD_REQUEST, request);
     }
 
-    @ExceptionHandler(NoSuchElementFoundException.class)
+    @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ResponseEntity<Object> handleNoSuchElementFoundException(NoSuchElementFoundException elementNotFoundException, WebRequest request) {
+    public ResponseEntity<Object> handleNoSuchElementFoundException(NotFoundException elementNotFoundException, WebRequest request) {
         log.error(FAILED_TO_FIND_REQUESTED_ELEMENT, elementNotFoundException);
         return buildErrorResponse(elementNotFoundException, HttpStatus.NOT_FOUND, request);
     }
@@ -142,17 +142,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return Objects.nonNull(value)
             && value.length > 0
             && value[0].contentEquals("true");
-    }
-
-    @Nullable
-    @Override
-    public ResponseEntity<Object> handleExceptionInternal(
-        Exception ex,
-        @Nullable Object body,
-        HttpHeaders headers,
-        HttpStatusCode status,
-        WebRequest request) {
-
-        return buildErrorResponse(ex, status, request);
     }
 }

@@ -1,10 +1,10 @@
 package com.sophium.treeier.controller;
 
 import com.sophium.treeier.dto.NodeDto;
-import com.sophium.treeier.exception.NoSuchElementFoundException;
+import com.sophium.treeier.exception.NotFoundException;
 
 import com.sophium.treeier.service.NodeService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,16 +20,16 @@ import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class NodeController {
 
-    @Autowired
-    NodeService nodeService;
+    private final NodeService nodeService;
 
     @GetMapping("/node/{id}")
     public NodeDto getNode(@PathVariable("id") Long nodeId) {
         NodeDto node = nodeService.findById(nodeId);
         if (node == null) {
-            throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, nodeId));
+            throw new NotFoundException(String.format(NODE_NOT_FOUND, nodeId));
         }
         return node;
     }
@@ -38,22 +38,23 @@ public class NodeController {
     public List<NodeDto> findChildrenFromRoot(@PathVariable("rootNodeId") Long rootNodeId) {
         List<NodeDto> node = nodeService.findAllNodesFromRoot(rootNodeId);
         if (node == null) {
-            throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, rootNodeId));
+            throw new NotFoundException(String.format(NODE_NOT_FOUND, rootNodeId));
         }
         return node;
     }
 
-    @PutMapping("/node/{id}/move/{newParentId}")
+    @PutMapping("/tree/{treeId}/node/{nodeId}/move/{newParentId}")
     @ResponseStatus(HttpStatus.OK)
-    public void moveNode(@PathVariable("id") Long nodeId,
-                         @PathVariable("newParentId") Long newParentId) {
-        nodeService.moveNode(nodeId, newParentId);
+    public void moveNode(@PathVariable Long treeId,
+                         @PathVariable Long nodeId,
+                         @PathVariable Long newParentId) {
+        nodeService.moveNode(treeId, nodeId, newParentId);
     }
 
-    @DeleteMapping("/node/{id}")
+    @DeleteMapping("/tree/{treeId}/node/{nodeId}")
     @ResponseStatus(HttpStatus.OK)
-    public List<Long> deleteNode(@PathVariable("id") Long nodeId) {
-        return nodeService.deleteNodeAndDescendants(nodeId);
+    public List<Long> deleteNode(@PathVariable Long treeId, @PathVariable Long nodeId) {
+        return nodeService.deleteNodeAndDescendants(treeId, nodeId);
     }
 
 }

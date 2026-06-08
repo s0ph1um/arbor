@@ -5,10 +5,6 @@ import com.sophium.treeier.dto.ShareTreeDto;
 import com.sophium.treeier.dto.TreeDto;
 import com.sophium.treeier.dto.TreeStatisticsDto;
 import com.sophium.treeier.dto.UpdateTreeDto;
-import com.sophium.treeier.entity.Tree;
-import com.sophium.treeier.entity.User;
-import com.sophium.treeier.repository.TreeJpaRepository;
-import com.sophium.treeier.repository.UserRepository;
 import com.sophium.treeier.request.CreateTreeDto;
 import com.sophium.treeier.request.CreateTreeNodeDto;
 import com.sophium.treeier.request.UpdateTreeNodeDto;
@@ -36,9 +32,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
-import java.util.Optional;
-
-import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
 
 @RestController
 @RequestMapping("/api/trees")
@@ -47,8 +40,6 @@ import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
 public class TreeController {
 
     private final TreeService treeService;
-    private final UserRepository userRepository;
-    private final TreeJpaRepository treeRepository;
     private final NodeService nodeService;
 
     @PostMapping
@@ -79,18 +70,14 @@ public class TreeController {
 
     @PutMapping("/{id}")
     public ResponseEntity<TreeDto> updateTree(@PathVariable Long id, @Valid @RequestBody UpdateTreeDto updateTreeDto) {
-        Optional<User> currentUser = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        TreeDto updated = treeService.updateTree(id, updateTreeDto, currentUser);
+        TreeDto updated = treeService.updateTree(id, updateTreeDto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ResponseEntity<Void> deleteTree(@PathVariable Long id) {
-        Optional<User> currentUser = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        treeService.deleteTree(id, currentUser);
+        treeService.deleteTree(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -107,8 +94,7 @@ public class TreeController {
     public ResponseEntity<Void> shareTree(
         @PathVariable Long id,
         @Valid @RequestBody ShareTreeDto shareDto) {
-        Optional<User> currentUser = userRepository.findByEmail(getAuthenticatedUserEmail());
-        treeService.shareTree(id, shareDto.getUserIds(), currentUser);
+        treeService.shareTree(id, shareDto.getUserIds());
         return ResponseEntity.ok().build();
     }
 
@@ -116,9 +102,7 @@ public class TreeController {
     public ResponseEntity<Void> removeEditor(
         @PathVariable Long id,
         @PathVariable Long userId) {
-        Optional<User> currentUser = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        treeService.removeEditor(id, userId, currentUser);
+        treeService.removeEditor(id, userId);
         return ResponseEntity.ok().build();
     }
 
@@ -126,9 +110,7 @@ public class TreeController {
     public ResponseEntity<TreeDto> updateLabels(
         @PathVariable Long id,
         @Valid @Size(max = 5) @RequestBody Map<@Size(max = 15) String, @Size(max = 15) String> labels) {
-        Optional<User> user = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        TreeDto updated = treeService.updateLabels(id, labels, user);
+        TreeDto updated = treeService.updateLabels(id, labels);
         return ResponseEntity.ok(updated);
     }
 
@@ -139,16 +121,12 @@ public class TreeController {
         return ResponseEntity.ok(stats);
     }
 
-    @PostMapping("/{id}/node")
+    @PostMapping("/{treeId}/node")
     @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<NodeDto> addNode(
-        @PathVariable Long id,
+        @PathVariable Long treeId,
         @Valid @RequestBody CreateTreeNodeDto nodeDto) {
-        Optional<User> user = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        Optional<Tree> treeOpt = treeRepository.findById(id);
-
-        NodeDto createdNode = treeService.addNodeToTree(treeOpt.orElse(null), nodeDto, user);
+        NodeDto createdNode = treeService.addNodeToTree(treeId, nodeDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdNode);
     }
 
@@ -158,9 +136,7 @@ public class TreeController {
         @PathVariable Long treeId,
         @PathVariable Long nodeId,
         @Valid @RequestBody UpdateTreeNodeDto updateNodeDto) {
-        Optional<User> user = userRepository.findByEmail(getAuthenticatedUserEmail());
-
-        NodeDto updatedNode = nodeService.updateNode(treeId, nodeId, updateNodeDto, user);
+        NodeDto updatedNode = nodeService.updateNode(treeId, nodeId, updateNodeDto);
         return ResponseEntity.status(HttpStatus.OK).body(updatedNode);
     }
 
@@ -169,8 +145,7 @@ public class TreeController {
         @PathVariable Long id,
         @PathVariable Long nodeId,
         @PathVariable Long newParentId) {
-        Optional<User> user = userRepository.findByEmail(getAuthenticatedUserEmail());
-        treeService.moveNodeWithinTree(id, nodeId, newParentId, user);
+        treeService.moveNodeWithinTree(id, nodeId, newParentId);
         return ResponseEntity.ok().build();
     }
 }

@@ -9,7 +9,7 @@ import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
 import com.sophium.treeier.exception.DepthLimitException;
 import com.sophium.treeier.exception.InvalidNodeException;
-import com.sophium.treeier.exception.NoSuchElementFoundException;
+import com.sophium.treeier.exception.NotFoundException;
 import com.sophium.treeier.exception.NodeLimitException;
 import com.sophium.treeier.exception.TreeNotFoundException;
 import com.sophium.treeier.mapper.TreeMapper;
@@ -19,6 +19,7 @@ import com.sophium.treeier.repository.TreeJpaRepository;
 import com.sophium.treeier.repository.UserRepository;
 import com.sophium.treeier.request.CreateTreeDto;
 import com.sophium.treeier.request.CreateTreeNodeDto;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -27,7 +28,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,7 +37,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
-import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserName;
 import static com.sophium.treeier.util.Constants.MAXIMUM_DEPTH_LIMIT_REACHED;
 import static com.sophium.treeier.util.Constants.MAXIMUM_NODES_LIMIT_REACHED;
 import static com.sophium.treeier.util.Constants.NODE_DOES_NOT_EXIST_IN_THIS_TREE;
@@ -59,6 +58,7 @@ public class TreeService {
     private final NodeService nodeService;
     private final NodeRepository nodeRepository;
     private final UserRepository userRepository;
+    private final UserService userService;
     private final TreeMapper treeMapper;
     private final TreeNodeMapper treeNodeMapper;
 
@@ -70,7 +70,7 @@ public class TreeService {
         rootNode.setTitle(dto.getTitle());
         rootNode.setDescription(dto.getDescription());
 
-        NodeDto createdRootNode = nodeService.createNode(rootNode);
+        NodeDto createdRootNode = nodeService.createNode(rootNode.getId(), rootNode);
 
         Tree tree = Tree.builder()
             .title(dto.getTitle())
@@ -81,7 +81,7 @@ public class TreeService {
             .maxDepth(0)
             .build();
 
-        User treeOwner = getTreeOwner(tree);
+        User treeOwner = userService.getTreeOwner(tree);
         tree.setOwner(treeOwner);
 
         Tree savedTree = treeRepository.save(tree);
@@ -91,9 +91,9 @@ public class TreeService {
 
     public TreeDto forkTree(Long treeId, String newTitle) {
         Tree originalTree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        Map<Long, Long> idMapping = copyNodeStructure(originalTree.getRootNodeId());
+        Map<Long, Long> idMapping = copyNodeStructure(treeId, originalTree.getRootNodeId());
 
         Tree forkedTree = Tree.builder()
             .title(newTitle != null ? newTitle : originalTree.getTitle() + " (Fork)")
@@ -105,17 +105,18 @@ public class TreeService {
             .maxDepth(originalTree.getMaxDepth())
             .build();
 
-        User treeOwner = getTreeOwner(forkedTree);
+        User treeOwner = userService.getTreeOwner(forkedTree);
         forkedTree.setOwner(treeOwner);
 
         return treeMapper.toDto(treeRepository.save(forkedTree));
     }
 
-    public TreeDto updateTree(Long treeId, UpdateTreeDto dto, Optional<User> currentUser) {
+    public TreeDto updateTree(Long treeId, UpdateTreeDto dto) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        if (currentUser.isEmpty() || !tree.canEdit(currentUser.get())) {
+        if (!tree.canEdit(currentUser)) {
             throw new AccessDeniedException("User cannot edit this tree");
         }
 
@@ -133,16 +134,16 @@ public class TreeService {
         return treeMapper.toDto(saved);
     }
 
-    public void deleteTree(Long treeId, Optional<User> currentUser) {
+    public void deleteTree(Long treeId) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
             .orElseThrow(() -> new TreeNotFoundException(treeId));
 
-        User user = currentUser.orElse(null);
-        if (isNull(user) || !tree.isOwner(user)) {
+        if (!tree.isOwner(currentUser)) {
             throw new AccessDeniedException("Only owner can delete tree");
         }
 
-        tree.softDelete(user.getName());
+        tree.softDelete(currentUser.getName());
         treeRepository.save(tree);
     }
 
@@ -159,11 +160,12 @@ public class TreeService {
         return trees.map(treeMapper::toDtoWithoutNodes);
     }
 
-    public void shareTree(Long treeId, List<Long> userIds, Optional<User> currentUser) {
+    public void shareTree(Long treeId, List<Long> userIds) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        if (currentUser.isEmpty() || !tree.isOwner(currentUser.get())) {
+        if (!tree.isOwner(currentUser)) {
             throw new AccessDeniedException("Only owner can share tree");
         }
 
@@ -173,11 +175,12 @@ public class TreeService {
         treeRepository.save(tree);
     }
 
-    public void removeEditor(Long treeId, Long userId, Optional<User> currentUser) {
+    public void removeEditor(Long treeId, Long userId) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        if (currentUser.isEmpty() || !tree.isOwner(currentUser.get())) {
+        if (!tree.isOwner(currentUser)) {
             throw new AccessDeniedException("Only owner can manage editors");
         }
 
@@ -188,7 +191,7 @@ public class TreeService {
     @Transactional(readOnly = true)
     public TreeDto getTreeWithNodes(Long treeId) {
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
         List<NodeDto> nodes = loadTreeStructure(tree.getRootNodeId());
 
@@ -198,7 +201,7 @@ public class TreeService {
     @Transactional(readOnly = true)
     public TreeDto getTreeWithoutNodes(Long treeId) {
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
         return treeMapper.toDtoWithoutNodes(tree);
     }
 
@@ -222,11 +225,12 @@ public class TreeService {
         parent.setChildren(children);
     }
 
-    public TreeDto updateLabels(Long treeId, Map<String, String> labels, Optional<User> currentUser) {
+    public TreeDto updateLabels(Long treeId, Map<String, String> labels) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        if (currentUser.isEmpty() || !tree.canEdit(currentUser.get())) {
+        if (!tree.canEdit(currentUser)) {
             throw new AccessDeniedException("User cannot edit this tree");
         }
 
@@ -238,7 +242,7 @@ public class TreeService {
     @Transactional(readOnly = true)
     public TreeStatisticsDto getTreeStatistics(Long treeId) {
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
         Map<Integer, Integer> nodesPerLevel = nodeRepository.countNodesPerLevel(tree.getRootNodeId());
 
@@ -252,8 +256,17 @@ public class TreeService {
         );
     }
 
-    public NodeDto addNodeToTree(Tree tree, CreateTreeNodeDto createNodeDto, Optional<User> currentUser) {
-        if (currentUser.isEmpty() || !tree.canEdit(currentUser.get())) {
+    public NodeDto addNodeToTree(Long treeId, CreateTreeNodeDto createNodeDto) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
+        Optional<Tree> treeOpt = treeRepository.findById(treeId);
+
+        if (treeOpt.isEmpty()) {
+            throw new NotFoundException(String.format(TREE_NOT_FOUND, treeId));
+        }
+
+        Tree tree = treeOpt.get();
+
+        if (!tree.canEdit(currentUser)) {
             throw new AccessDeniedException("User cannot edit this tree");
         }
 
@@ -264,12 +277,21 @@ public class TreeService {
         if (nonNull(createNodeDto.getParentId())) {
             NodeDto parentNode = nodeService.findById(createNodeDto.getParentId());
             if (isNull(parentNode)) {
-                throw new NoSuchElementFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
+                throw new NotFoundException(String.format(NODE_NOT_FOUND, createNodeDto.getParentId()));
             } else if (parentNode.getDepth() >= MAX_DEPTH - 1) {
                 throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
             }
         }
 
+        NodeDto newNode = populateNewTreeNode(tree, createNodeDto);
+        NodeDto created = nodeService.createNode(treeId, newNode);
+
+        updateTreeStatistics(tree);
+
+        return treeNodeMapper.nodeDtoToTreeNodeDto(created);
+    }
+
+    private @NonNull NodeDto populateNewTreeNode(Tree tree, CreateTreeNodeDto createNodeDto) {
         NodeDto newNode = new NodeDto();
         newNode.setId(generateNodeId());
         newNode.setParentId(createNodeDto.getParentId() != null ? createNodeDto.getParentId() : tree.getRootNodeId());
@@ -279,19 +301,15 @@ public class TreeService {
         newNode.setFlagValue(createNodeDto.getFlagValue());
         newNode.setNodeType(createNodeDto.getNodeType());
         newNode.setLinkValue(createNodeDto.getLinkValue());
-
-        NodeDto created = nodeService.createNode(newNode);
-
-        updateTreeStatistics(tree);
-
-        return treeNodeMapper.nodeDtoToTreeNodeDto(created);
+        return newNode;
     }
 
-    public void moveNodeWithinTree(Long treeId, Long nodeId, Long newParentId, Optional<User> currentUser) {
+    public void moveNodeWithinTree(Long treeId, Long nodeId, Long newParentId) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Tree tree = treeRepository.findById(treeId)
-            .orElseThrow(() -> new NoSuchElementFoundException(String.format(TREE_NOT_FOUND, treeId)));
+            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
 
-        if (currentUser.isEmpty() || !tree.canEdit(currentUser.get())) {
+        if (!tree.canEdit(currentUser)) {
             throw new AccessDeniedException("User cannot edit this tree");
         }
 
@@ -300,7 +318,7 @@ public class TreeService {
             throw new InvalidNodeException(String.format(NODE_DOES_NOT_EXIST_IN_THIS_TREE, nodeId));
         }
 
-        nodeService.moveNode(nodeId, newParentId);
+        nodeService.moveNode(nodeId, newParentId, treeId);
         updateTreeStatistics(tree);
     }
 
@@ -313,7 +331,7 @@ public class TreeService {
         treeRepository.save(tree);
     }
 
-    private Map<Long, Long> copyNodeStructure(Long rootNodeId) {
+    private Map<Long, Long> copyNodeStructure(Long treeId, Long rootNodeId) {
         Map<Long, Long> oldToNewIdMapping = new HashMap<>();
 
         NodeDto rootNode = nodeService.findById(rootNodeId);
@@ -325,7 +343,7 @@ public class TreeService {
         newRoot.setTitle(rootNode.getTitle());
         newRoot.setDepth(0);
 
-        NodeDto createdRoot = nodeService.createNode(newRoot);
+        NodeDto createdRoot = nodeService.createNode(treeId, newRoot);
         oldToNewIdMapping.put(rootNodeId, createdRoot.getId());
 
         allDescendants.sort(Comparator.comparing(NodeDto::getDepth));
@@ -341,7 +359,7 @@ public class TreeService {
 
             copyNodeDetails(descendant.getId(), newNode);
 
-            NodeDto createdNode = nodeService.createNode(newNode);
+            NodeDto createdNode = nodeService.createNode(treeId, newNode);
             oldToNewIdMapping.put(descendant.getId(), createdNode.getId());
         }
 
@@ -357,21 +375,6 @@ public class TreeService {
             targetNode.setFlagValue(sourceEntity.getFlagValue());
             targetNode.setLinkValue(sourceEntity.getLinkValue());
         }
-    }
-
-
-    private User getTreeOwner(Tree tree) {
-        String userId = getAuthenticatedUserEmail();
-        String userName = getAuthenticatedUserName();
-        Optional<User> existingUserOpt = userRepository.findByEmail(userId);
-
-        return existingUserOpt
-            .orElseGet(() -> userRepository.save(User.builder()
-                .email(userId)
-                .name(userName)
-                .createdAt(LocalDateTime.now())
-                .editableTrees(Set.of(tree))
-                .build()));
     }
 
     private Long generateNodeId() {
