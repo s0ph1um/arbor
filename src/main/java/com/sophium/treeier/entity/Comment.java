@@ -40,6 +40,9 @@ public class Comment {
     @JoinColumn(name = "node_id", nullable = false)
     private NodeEntity node;
 
+    @Column(name = "changelog_entry_id")
+    private Long changelogEntryId;
+
     @Column
     LocalDateTime createdAt;
 }
