@@ -1,6 +1,5 @@
 package com.sophium.treeier.dto;
 
-import com.sophium.treeier.entity.User;
 import lombok.Builder;
 import lombok.Data;
 
@@ -11,9 +10,9 @@ import java.time.LocalDateTime;
 public class CommentDto {
     private Long id;
 
-    private User author;
+    private UserDto author;
 
     private String text;
 
-    private LocalDateTime createdAt; // todo check mapper
+    private LocalDateTime createdAt;
 }
