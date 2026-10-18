@@ -1,5 +1,8 @@
 package com.sophium.treeier.controller;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sophium.treeier.dto.ImportTreeDto;
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.ShareTreeDto;
 import com.sophium.treeier.dto.TreeDto;
@@ -17,7 +20,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +35,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import java.util.Map;
 
@@ -147,5 +155,32 @@ public class TreeController {
         @PathVariable Long newParentId) {
         treeService.moveNodeWithinTree(id, nodeId, newParentId);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/import")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<TreeDto> importTree(@Valid @RequestBody ImportTreeDto importDto) {
+        TreeDto created = treeService.importTree(importDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping(value = "/import/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<TreeDto> importTreeFile(@RequestParam("file") MultipartFile file) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        ImportTreeDto importDto = mapper.readValue(file.getInputStream(), ImportTreeDto.class);
+        TreeDto created = treeService.importTree(importDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/{id}/export")
+    public ResponseEntity<TreeDto> exportTree(@PathVariable Long id) {
+        TreeDto tree = treeService.getTreeWithNodes(id);
+        String filename = (tree.getTitle() != null ? tree.getTitle().trim() : "tree") + ".json";
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+            .body(tree);
     }
 }

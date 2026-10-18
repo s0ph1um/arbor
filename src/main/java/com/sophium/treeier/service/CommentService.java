@@ -26,6 +26,8 @@ import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.USER_CANNOT_EDIT_THIS_TREE;
+import static com.sophium.treeier.util.Constants.COMMENT_NOT_FOUND;
+import static com.sophium.treeier.util.Constants.USER_CANNOT_CHANGE_THIS_COMMENT;
 
 @Service
 @RequiredArgsConstructor
@@ -38,11 +40,7 @@ public class CommentService {
     private final UserService userService;
     private final CommentMapper commentMapper;
 
-    // Получаем комменты ТОЛЬКО для текущей версии ноды
-    public List<CommentDto> getNodeComments(Long treeId, Long nodeId) {
-//        treeRepository.findById(treeId)
-//            .orElseThrow(() -> new NotFoundException(String.format(TREE_NOT_FOUND, treeId)));
-
+    public List<CommentDto> getNodeComments(Long nodeId) {
         Optional<Long> latestEntryId = changelogRepository
             .findTopByNodeIdOrderByChangedAtDesc(nodeId)
             .map(ChangelogEntry::getId);
@@ -51,8 +49,7 @@ public class CommentService {
             ? commentRepository.findByNode_IdAndChangelogEntryIdOrderByCreatedAtDesc(nodeId, latestEntryId.get())
             : commentRepository.findByNode_IdAndChangelogEntryIdIsNullOrderByCreatedAtDesc(nodeId);
 
-        List<CommentDto> dtos = commentMapper.toDtos(comments);
-        return dtos;
+        return commentMapper.toDtos(comments);
     }
 
     @Transactional
@@ -68,7 +65,6 @@ public class CommentService {
         NodeEntity node = nodeJpaRepository.findById(nodeId)
             .orElseThrow(() -> new NotFoundException(String.format(NODE_NOT_FOUND, nodeId)));
 
-        // Привязываем комментарий к текущей версии ноды
         Long changelogEntryId = changelogRepository
             .findTopByNodeIdOrderByChangedAtDesc(nodeId)
             .map(ChangelogEntry::getId)
@@ -89,10 +85,10 @@ public class CommentService {
     public CommentDto updateComment(Long commentId, String text) {
         User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Comment comment = commentRepository.findById(commentId)
-            .orElseThrow(() -> new NotFoundException(String.format("COMMENT_NOT_FOUND", commentId))); // todo
+            .orElseThrow(() -> new NotFoundException(String.format(COMMENT_NOT_FOUND, commentId)));
 
         if (!comment.getAuthor().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("USER_CANNOT_CHANGE_THIS_COMMENT"); // todo
+            throw new AccessDeniedException(USER_CANNOT_CHANGE_THIS_COMMENT);
         }
 
         comment.setText(text);
@@ -103,10 +99,10 @@ public class CommentService {
     public void deleteComment(Long commentId) {
         User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
         Comment comment = commentRepository.findById(commentId)
-            .orElseThrow(() -> new NotFoundException(String.format("COMMENT_NOT_FOUND", commentId)));
+            .orElseThrow(() -> new NotFoundException(String.format(COMMENT_NOT_FOUND, commentId)));
 
         if (!comment.getAuthor().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("USER_CANNOT_CHANGE_THIS_COMMENT");
+            throw new AccessDeniedException(USER_CANNOT_CHANGE_THIS_COMMENT);
         }
 
         commentRepository.delete(comment);

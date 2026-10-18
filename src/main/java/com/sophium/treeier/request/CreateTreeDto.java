@@ -24,6 +24,4 @@ public class CreateTreeDto {
     @Size(max = 5)
     private Map<@Size(max = 15) String, @Size(max = 15) String> labels;
 
-    private Long parentTreeId;
-
 }

@@ -1,10 +1,12 @@
 package com.sophium.treeier.service;
 
+import com.sophium.treeier.dto.ImportTreeDto;
 import com.sophium.treeier.dto.NodeDto;
 import com.sophium.treeier.dto.TreeDto;
 import com.sophium.treeier.dto.TreeStatisticsDto;
 import com.sophium.treeier.dto.UpdateTreeDto;
 import com.sophium.treeier.entity.NodeEntity;
+import com.sophium.treeier.entity.NodeType;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
 import com.sophium.treeier.exception.DepthLimitException;
@@ -33,8 +35,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
 import static com.sophium.treeier.util.Constants.MAXIMUM_DEPTH_LIMIT_REACHED;
@@ -53,6 +57,8 @@ public class TreeService {
 
     private static final int MAX_NODES = 10000;
     private static final int MAX_DEPTH = 5;
+
+    private final AtomicLong nodeIdCounter = new AtomicLong(System.currentTimeMillis());
 
     private final TreeJpaRepository treeRepository;
     private final NodeService nodeService;
@@ -377,7 +383,167 @@ public class TreeService {
         }
     }
 
+    public TreeDto importTree(ImportTreeDto dto) {
+        User currentUser = userService.getUserByEmail(getAuthenticatedUserEmail());
+
+        Tree tree = Tree.builder()
+            .title(dto.getTitle())
+            .description(dto.getDescription())
+            .labels(dto.getLabels() != null ? new HashMap<>(dto.getLabels()) : new HashMap<>())
+            .owner(currentUser)
+            .nodeCount(1)
+            .maxDepth(0)
+            .build();
+
+        List<NodeDto> nodes = dto.getNodes();
+        if (nodes == null || nodes.isEmpty()) {
+            NodeDto rootNode = new NodeDto();
+            rootNode.setId(generateNodeId());
+            rootNode.setRootId(rootNode.getId());
+            rootNode.setTitle(dto.getTitle());
+            rootNode.setDescription(dto.getDescription());
+            rootNode.setNodeType(NodeType.DEFAULT);
+            rootNode.setDepth(0);
+
+            NodeDto createdRoot = nodeRepository.createNode(rootNode);
+            nodeRepository.createChildrenTableEntry(createdRoot);
+
+            tree.setRootNodeId(createdRoot.getId());
+            tree.setNodeCount(1);
+            tree.setMaxDepth(0);
+        } else {
+            NodeDto rootSource = nodes.stream()
+                .filter(n -> n.getParentId() == null)
+                .findFirst()
+                .orElse(nodes.get(0));
+
+            Long rootId = generateNodeId();
+
+            NodeDto rootNode = new NodeDto();
+            rootNode.setId(rootId);
+            rootNode.setRootId(rootId);
+            rootNode.setParentId(null);
+            rootNode.setTitle(rootSource.getTitle() != null ? rootSource.getTitle() : dto.getTitle());
+            rootNode.setDescription(rootSource.getDescription() != null ? rootSource.getDescription() : dto.getDescription());
+            rootNode.setNodeType(rootSource.getNodeType() != null ? rootSource.getNodeType() : NodeType.DEFAULT);
+            rootNode.setFlagValue(rootSource.getFlagValue());
+            rootNode.setLinkValue(rootSource.getLinkValue());
+            rootNode.setDepth(0);
+
+            NodeDto createdRoot = nodeRepository.createNode(rootNode);
+            nodeRepository.createChildrenTableEntry(createdRoot);
+
+            tree.setRootNodeId(rootId);
+
+            int totalNodes = 1;
+            int maxDepth = 0;
+
+            if (rootSource.getChildren() != null && !rootSource.getChildren().isEmpty()) {
+                ImportStats stats = importChildrenRecursively(rootSource.getChildren(), rootId, rootId, 1);
+                totalNodes += stats.count();
+                maxDepth = stats.maxDepth();
+            } else if (nodes.size() > 1) {
+                Map<Long, Long> idMapping = new HashMap<>();
+                if (rootSource.getId() != null) {
+                    idMapping.put(rootSource.getId(), rootId);
+                }
+
+                List<NodeDto> nonRootNodes = nodes.stream()
+                    .filter(n -> !Objects.equals(n.getId(), rootSource.getId()))
+                    .sorted(Comparator.comparingInt(n -> n.getDepth() != null ? n.getDepth() : 0))
+                    .toList();
+
+                for (NodeDto nodeItem : nonRootNodes) {
+                    if (totalNodes >= MAX_NODES) {
+                        throw new NodeLimitException(MAXIMUM_NODES_LIMIT_REACHED);
+                    }
+
+                    Long newChildId = generateNodeId();
+                    Long parentId = nodeItem.getParentId() != null && idMapping.containsKey(nodeItem.getParentId())
+                        ? idMapping.get(nodeItem.getParentId())
+                        : rootId;
+
+                    int nodeDepth = nodeItem.getDepth() != null ? nodeItem.getDepth() : 1;
+                    if (nodeDepth >= MAX_DEPTH) {
+                        throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
+                    }
+
+                    NodeDto childNode = new NodeDto();
+                    childNode.setId(newChildId);
+                    childNode.setRootId(rootId);
+                    childNode.setParentId(parentId);
+                    childNode.setTitle(nodeItem.getTitle());
+                    childNode.setDescription(nodeItem.getDescription());
+                    childNode.setNodeType(nodeItem.getNodeType() != null ? nodeItem.getNodeType() : NodeType.DEFAULT);
+                    childNode.setFlagValue(nodeItem.getFlagValue());
+                    childNode.setLinkValue(nodeItem.getLinkValue());
+
+                    NodeDto created = nodeRepository.createNode(childNode);
+                    nodeRepository.createChildrenTableEntry(created);
+                    nodeRepository.addNodeToParent(created.getId(), parentId);
+
+                    if (nodeItem.getId() != null) {
+                        idMapping.put(nodeItem.getId(), newChildId);
+                    }
+                    totalNodes++;
+                    if (nodeDepth > maxDepth) {
+                        maxDepth = nodeDepth;
+                    }
+                }
+            }
+
+            if (totalNodes > MAX_NODES) {
+                throw new NodeLimitException(MAXIMUM_NODES_LIMIT_REACHED);
+            }
+
+            tree.setNodeCount(totalNodes);
+            tree.setMaxDepth(maxDepth);
+        }
+
+        Tree savedTree = treeRepository.save(tree);
+        return getTreeWithNodes(savedTree.getId());
+    }
+
+    private record ImportStats(int count, int maxDepth) {}
+
+    private ImportStats importChildrenRecursively(List<NodeDto> children, Long parentId, Long rootId, int currentDepth) {
+        if (currentDepth >= MAX_DEPTH) {
+            throw new DepthLimitException(MAXIMUM_DEPTH_LIMIT_REACHED);
+        }
+
+        int count = 0;
+        int maxDepth = currentDepth;
+
+        for (NodeDto childSource : children) {
+            Long childId = generateNodeId();
+            NodeDto childNode = new NodeDto();
+            childNode.setId(childId);
+            childNode.setRootId(rootId);
+            childNode.setParentId(parentId);
+            childNode.setTitle(childSource.getTitle());
+            childNode.setDescription(childSource.getDescription());
+            childNode.setNodeType(childSource.getNodeType() != null ? childSource.getNodeType() : NodeType.DEFAULT);
+            childNode.setFlagValue(childSource.getFlagValue());
+            childNode.setLinkValue(childSource.getLinkValue());
+
+            NodeDto created = nodeRepository.createNode(childNode);
+            nodeRepository.createChildrenTableEntry(created);
+            nodeRepository.addNodeToParent(created.getId(), parentId);
+            count++;
+
+            if (childSource.getChildren() != null && !childSource.getChildren().isEmpty()) {
+                ImportStats childStats = importChildrenRecursively(childSource.getChildren(), childId, rootId, currentDepth + 1);
+                count += childStats.count();
+                if (childStats.maxDepth() > maxDepth) {
+                    maxDepth = childStats.maxDepth();
+                }
+            }
+        }
+
+        return new ImportStats(count, maxDepth);
+    }
+
     private Long generateNodeId() {
-        return System.currentTimeMillis() % Long.MAX_VALUE;
+        return nodeIdCounter.incrementAndGet();
     }
 }

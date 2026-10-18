@@ -27,10 +27,9 @@ public class CommentController {
 
     @GetMapping("/trees/{treeId}/nodes/{nodeId}/comments")
     public ResponseEntity<List<CommentDto>> getComments(
-        @PathVariable Long treeId,
         @PathVariable Long nodeId
     ) {
-        return ResponseEntity.ok(commentService.getNodeComments(treeId, nodeId));
+        return ResponseEntity.ok(commentService.getNodeComments(nodeId));
     }
 
     @PostMapping("/trees/{treeId}/nodes/{nodeId}/comments")

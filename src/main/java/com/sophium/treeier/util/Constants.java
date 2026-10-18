@@ -17,5 +17,7 @@ public final class Constants {
     public static final String REQUIRED_FIELD = "%s is a required field";
     public static final String UNKNOWN_ERROR_OCCURRED = "Unknown error occurred";
     public static final String USER_CANNOT_EDIT_THIS_TREE = "User cannot edit this tree";
+    public static final String COMMENT_NOT_FOUND = "Comment with id '%s' not found";
+    public static final String USER_CANNOT_CHANGE_THIS_COMMENT = "User cannot change this comment";
 
 }
