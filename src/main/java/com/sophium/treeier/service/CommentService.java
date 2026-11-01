@@ -6,6 +6,7 @@ import com.sophium.treeier.entity.Comment;
 import com.sophium.treeier.entity.NodeEntity;
 import com.sophium.treeier.entity.Tree;
 import com.sophium.treeier.entity.User;
+import com.sophium.treeier.exception.InvalidNodeException;
 import com.sophium.treeier.exception.NotFoundException;
 import com.sophium.treeier.mapper.CommentMapper;
 import com.sophium.treeier.repository.ChangelogRepository;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.sophium.treeier.util.AuthUtil.getAuthenticatedUserEmail;
+import static com.sophium.treeier.util.Constants.NODE_DOES_NOT_EXIST_IN_THIS_TREE;
 import static com.sophium.treeier.util.Constants.NODE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.TREE_NOT_FOUND;
 import static com.sophium.treeier.util.Constants.USER_CANNOT_EDIT_THIS_TREE;
@@ -64,6 +66,10 @@ public class CommentService {
 
         NodeEntity node = nodeJpaRepository.findById(nodeId)
             .orElseThrow(() -> new NotFoundException(String.format(NODE_NOT_FOUND, nodeId)));
+
+        if (!tree.getRootNodeId().equals(node.getRootId())) {
+            throw new InvalidNodeException(String.format(NODE_DOES_NOT_EXIST_IN_THIS_TREE, nodeId));
+        }
 
         Long changelogEntryId = changelogRepository
             .findTopByNodeIdOrderByChangedAtDesc(nodeId)
